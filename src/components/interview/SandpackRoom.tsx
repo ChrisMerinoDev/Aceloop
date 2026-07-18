@@ -2,45 +2,21 @@
 
 import {
   SandpackProvider,
-  SandpackLayout,
   SandpackCodeEditor,
   SandpackPreview,
-  SandpackTests,
 } from "@codesandbox/sandpack-react";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type { Question } from "@/lib/types";
 import type { SandpackResultsHandle } from "./InterviewRoom";
 import { PixelButton } from "@/components/ui/pixel";
+import { TestsPanel } from "./TestsPanel";
 
-/** Recursively counts pass/fail across Sandpack's spec tree. */
-function countTests(node: unknown): { passed: number; total: number } {
-  let passed = 0;
-  let total = 0;
-  if (node === null || typeof node !== "object") return { passed, total };
-  const rec = node as Record<string, unknown>;
-
-  const tests = rec.tests;
-  if (tests !== null && typeof tests === "object") {
-    for (const t of Object.values(tests as Record<string, unknown>)) {
-      const status = (t as Record<string, unknown>).status;
-      if (status === "pass" || status === "fail") {
-        total++;
-        if (status === "pass") passed++;
-      }
-    }
-  }
-  const describes = rec.describes;
-  if (describes !== null && typeof describes === "object") {
-    for (const d of Object.values(describes as Record<string, unknown>)) {
-      const sub = countTests(d);
-      passed += sub.passed;
-      total += sub.total;
-    }
-  }
-  return { passed, total };
-}
-
-export function SandpackRoom({
+/**
+ * Memoized: the interview room re-renders 4x/second for the countdown, and
+ * re-rendering SandpackProvider that often keeps the tests client stuck in
+ * "initialising" forever. Props must stay referentially stable.
+ */
+export const SandpackRoom = memo(function SandpackRoom({
   question,
   showSolution,
   onResults,
@@ -79,7 +55,13 @@ export function SandpackRoom({
           },
         }}
         theme="dark"
-        options={{ visibleFiles: ["/App.js"], activeFile: "/App.js" }}
+        options={{
+          visibleFiles: ["/App.js"],
+          activeFile: "/App.js",
+          // The tests client renders a hidden iframe; lazy init would never
+          // fire for it, so initialize all clients immediately.
+          initMode: "immediate",
+        }}
       >
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
           <div className="flex-1 min-h-[200px]">
@@ -107,27 +89,31 @@ export function SandpackRoom({
                 Tests
               </PixelButton>
             </div>
-            <div className="flex-1 min-h-0" style={{ display: tab === "preview" ? "block" : "none" }}>
-              <SandpackPreview style={{ height: "100%" }} showOpenInCodeSandbox={false} />
-            </div>
-            <div className="flex-1 min-h-0" style={{ display: tab === "tests" ? "block" : "none" }}>
-              <SandpackTests
-                style={{ height: "100%" }}
-                onComplete={(specs) => {
-                  let passed = 0;
-                  let total = 0;
-                  for (const s of Object.values(specs)) {
-                    const c = countTests(s);
-                    passed += c.passed;
-                    total += c.total;
-                  }
-                  onResults({ passed, total, ran: total > 0 });
+            {/* Both stay laid out (hidden via visibility, not display:none) so
+                the tests client's hidden iframe can initialize. */}
+            <div className="flex-1 min-h-0 relative">
+              <div
+                className="absolute inset-0"
+                style={{
+                  visibility: tab === "preview" ? "visible" : "hidden",
+                  zIndex: tab === "preview" ? 1 : 0,
                 }}
-              />
+              >
+                <SandpackPreview style={{ height: "100%" }} showOpenInCodeSandbox={false} />
+              </div>
+              <div
+                className="absolute inset-0"
+                style={{
+                  visibility: tab === "tests" ? "visible" : "hidden",
+                  zIndex: tab === "tests" ? 1 : 0,
+                }}
+              >
+                <TestsPanel onResults={onResults} />
+              </div>
             </div>
           </div>
         </div>
       </SandpackProvider>
     </div>
   );
-}
+})

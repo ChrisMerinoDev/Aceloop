@@ -24,10 +24,7 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ),
 });
 
-const SandpackRoom = dynamic(
-  () => import("./SandpackRoom").then((m) => m.SandpackRoom),
-  { ssr: false }
-);
+import { SandpackRoom } from "./SandpackRoom";
 
 export interface SandpackResultsHandle {
   passed: number;
@@ -54,6 +51,11 @@ export function InterviewRoom({ question }: { question: Question }) {
   const sandpackResults = useRef<SandpackResultsHandle>({ passed: 0, total: 0, ran: false });
   const codeRef = useRef(code);
   codeRef.current = code;
+  // Stable identity: SandpackRoom is memoized and must not re-render on
+  // timer ticks, or its tests client never finishes initializing.
+  const handleSandpackResults = useCallback((r: SandpackResultsHandle) => {
+    sandpackResults.current = r;
+  }, []);
 
   const unlocked = isLevelUnlocked(question.level, game.xp, game.isSolved);
 
@@ -259,6 +261,10 @@ export function InterviewRoom({ question }: { question: Question }) {
                 theme="vs-dark"
                 value={code}
                 onChange={(v) => setCode(v ?? "")}
+                onMount={(editor) => {
+                  // Test/automation hook (harmless in production).
+                  (window as unknown as Record<string, unknown>).__aceloopEditor = editor;
+                }}
                 options={{
                   fontSize: 14,
                   minimap: { enabled: false },
@@ -272,9 +278,7 @@ export function InterviewRoom({ question }: { question: Question }) {
             <SandpackRoom
               question={question}
               showSolution={showSolution}
-              onResults={(r) => {
-                sandpackResults.current = r;
-              }}
+              onResults={handleSandpackResults}
             />
           )}
 

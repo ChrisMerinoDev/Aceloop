@@ -15,7 +15,7 @@ import {
   letterGrade,
   rankForXp,
 } from "@/lib/scoring";
-import { isLevelUnlocked, LEVELS, QUESTIONS, questionsForLevel } from "@/content";
+import { isLevelUnlocked, LEVELS, QUESTIONS } from "@/content";
 import { ACHIEVEMENTS } from "@/content/achievements";
 import { todayKey, daysBetween, uid } from "@/lib/utils";
 import { syncAfterAttempt, syncProfile } from "@/lib/supabase/sync";
@@ -49,9 +49,17 @@ interface GameState {
   revealedSolutions: Record<string, boolean>;
   /** Supabase user id when signed in; null = guest/local-only. */
   userId: string | null;
+  /**
+   * Relaxed local "session": true after the fake sign-in (no credentials
+   * required for now — Supabase wiring returns later). Persists until the
+   * user explicitly logs out.
+   */
+  loggedIn: boolean;
 
   setUsername: (name: string) => void;
   setUserId: (id: string | null) => void;
+  logIn: () => void;
+  logOut: () => void;
   markSolutionRevealed: (slug: string) => void;
   touchStreak: () => void;
   recordAttempt: (
@@ -86,12 +94,15 @@ export const useGame = create<GameState>()(
       achievements: {},
       revealedSolutions: {},
       userId: null,
+      loggedIn: false,
 
       setUsername: (name) => {
         set({ username: name });
         void syncProfile(get());
       },
       setUserId: (id) => set({ userId: id }),
+      logIn: () => set({ loggedIn: true }),
+      logOut: () => set({ loggedIn: false }),
 
       markSolutionRevealed: (slug) =>
         set((s) => ({

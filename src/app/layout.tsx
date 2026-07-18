@@ -4,6 +4,7 @@ import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { CharacterOverlay } from "@/components/character/CharacterOverlay";
 import { MusicController } from "@/components/audio/MusicController";
+import { LogoutCorner } from "@/components/LogoutCorner";
 
 const pressStart = Press_Start_2P({
   weight: "400",
@@ -37,6 +38,7 @@ export default function RootLayout({
         {children}
         <CharacterOverlay />
         <MusicController />
+        <LogoutCorner />
       </body>
     </html>
   );

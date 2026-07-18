@@ -1,136 +1,131 @@
 "use client";
 
-import { useState } from "react";
+// Relaxed local auth: any (or empty) credentials "log in" immediately, then
+// the user picks a hero name that's tracked in localStorage until they hit
+// the log-out button. Strict Supabase credential auth gets rewired later —
+// the client/sync code in src/lib/supabase/ is kept ready for it.
+
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getSupabase, supabaseConfigured } from "@/lib/supabase/client";
+import { motion } from "framer-motion";
 import { useGame } from "@/store/game";
 import { PixelButton, PixelInput, PixelPanel } from "@/components/ui/pixel";
 
 export default function AuthPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const game = useGame();
+  const [mounted, setMounted] = useState(false);
+  const [step, setStep] = useState<"login" | "username">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const configured = supabaseConfigured();
+  const [name, setName] = useState("");
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const sb = getSupabase();
-    if (!sb) return;
-    setBusy(true);
-    setMessage(null);
-    try {
-      if (mode === "signup") {
-        const { error } = await sb.auth.signUp({
-          email,
-          password,
-          options: { data: { username: username || "Hero" } },
-        });
-        if (error) throw error;
-        if (username) useGame.getState().setUsername(username);
-        setMessage(
-          "Account created! If email confirmation is enabled, check your inbox — then sign in."
-        );
-        setMode("signin");
-      } else {
-        const { error } = await sb.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        router.push("/arena");
-      }
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setBusy(false);
-    }
-  };
+  useEffect(() => {
+    setMounted(true);
+    setName(useGame.getState().username === "Hero" ? "" : useGame.getState().username);
+  }, []);
 
-  const google = async () => {
-    const sb = getSupabase();
-    if (!sb) return;
-    await sb.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/arena` },
-    });
-  };
+  if (!mounted) {
+    return (
+      <main className="mx-auto max-w-md px-4 py-16 text-center font-pixel text-[10px] text-ink-dim">
+        LOADING<span className="blink">…</span>
+      </main>
+    );
+  }
 
-  if (!configured) {
+  if (game.loggedIn && step === "login") {
     return (
       <main className="mx-auto max-w-md px-4 py-16">
-        <PixelPanel title="Guest Mode Active" className="text-center">
-          <p className="text-ink-dim">
-            Supabase isn&apos;t configured, so accounts are disabled — but the
-            whole game works in guest mode and saves to this browser.
+        <PixelPanel title="🗝 Already In" className="text-center">
+          <p className="text-ink">
+            You&apos;re logged in as{" "}
+            <span className="text-gold-2">{game.username}</span>.
           </p>
-          <p className="text-ink-dim mt-3">
-            To enable cloud saves and the leaderboard, add your Supabase keys
-            to <code className="text-xpbar">.env.local</code> (see the README).
-          </p>
-          <Link href="/arena" className="inline-block mt-5">
-            <PixelButton>Play as Guest</PixelButton>
-          </Link>
+          <div className="mt-5 flex gap-2 justify-center flex-wrap">
+            <Link href="/arena">
+              <PixelButton>Enter the Arena</PixelButton>
+            </Link>
+            <PixelButton variant="ghost" onClick={() => setStep("username")}>
+              Change Name
+            </PixelButton>
+          </div>
         </PixelPanel>
       </main>
     );
   }
 
+  const finishLogin = () => {
+    const finalName = name.trim() || "Hero";
+    game.setUsername(finalName);
+    game.logIn();
+    router.push("/arena");
+  };
+
   return (
     <main className="mx-auto max-w-md px-4 py-16">
-      <PixelPanel title={mode === "signin" ? "🗝 Sign In" : "✨ Create Account"}>
-        <form onSubmit={submit} className="space-y-3">
-          {mode === "signup" && (
+      {step === "login" ? (
+        <PixelPanel title="🗝 Sign In">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setStep("username");
+            }}
+            className="space-y-3"
+          >
             <PixelInput
-              placeholder="Hero name"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              maxLength={20}
-              aria-label="Username"
+              type="email"
+              placeholder="Email (optional for now)"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-label="Email"
             />
-          )}
-          <PixelInput
-            type="email"
-            required
-            placeholder="you@tavern.dev"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            aria-label="Email"
-          />
-          <PixelInput
-            type="password"
-            required
-            minLength={6}
-            placeholder="Password (6+ chars)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            aria-label="Password"
-          />
-          {message !== null && <p className="text-gold-2">{message}</p>}
-          <div className="flex gap-2 pt-1">
-            <PixelButton type="submit" disabled={busy} className="flex-1">
-              {busy ? "…" : mode === "signin" ? "Sign In" : "Sign Up"}
+            <PixelInput
+              type="password"
+              placeholder="Password (optional for now)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              aria-label="Password"
+            />
+            <PixelButton type="submit" className="w-full">
+              Log In
             </PixelButton>
-            <PixelButton type="button" variant="ghost" onClick={() => void google()}>
-              Google
-            </PixelButton>
-          </div>
-        </form>
-        <button
-          className="font-pixel text-[9px] text-mp mt-4 hover:text-gold-2"
-          onClick={() => {
-            setMode(mode === "signin" ? "signup" : "signin");
-            setMessage(null);
-          }}
-        >
-          {mode === "signin" ? "New here? Create an account →" : "← Already have an account"}
-        </button>
-        <p className="text-ink-dim mt-4">
-          Your guest progress merges into your account on first sign-in (the
-          higher XP wins).
-        </p>
-      </PixelPanel>
+          </form>
+          <p className="text-ink-dim mt-4">
+            Credentials are relaxed while accounts are being set up — leave the
+            fields empty and hit Log In. Your progress is saved in this
+            browser and stays until you log out.
+          </p>
+        </PixelPanel>
+      ) : (
+        <motion.div initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}>
+          <PixelPanel title="✨ Name Your Hero">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                finishLogin();
+              }}
+              className="space-y-3"
+            >
+              <PixelInput
+                autoFocus
+                placeholder="e.g. StackSlayer"
+                value={name}
+                maxLength={20}
+                onChange={(e) => setName(e.target.value)}
+                aria-label="Hero name"
+              />
+              <PixelButton type="submit" variant="green" className="w-full">
+                {name.trim() ? `Enter as ${name.trim()}` : "Enter as Hero"}
+              </PixelButton>
+            </form>
+            <p className="text-ink-dim mt-4">
+              This name shows on your dashboard and the leaderboard. You can
+              change it any time from the Hero Forge.
+            </p>
+          </PixelPanel>
+        </motion.div>
+      )}
     </main>
   );
 }

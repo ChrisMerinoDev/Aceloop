@@ -31,7 +31,7 @@ alive, and climb from Bronze to Master — while a chiptune overworld theme play
   WASD/arrows; hide them any time. Chiptune theme is generated with the Web
   Audio API — mute/unmute in the nav.
 
-## Quick start (guest mode, zero config)
+## Quick start (zero config)
 
 ```bash
 npm install
@@ -39,10 +39,20 @@ npm run dev
 ```
 
 Open http://localhost:3000. Everything works without Supabase — progress is
-saved to localStorage ("guest mode"). Accounts, cloud sync, and the global
-leaderboard light up once Supabase is configured.
+saved to localStorage.
 
-## Supabase setup (accounts + cloud saves + leaderboard)
+### Auth is currently relaxed (by design)
+
+While Supabase accounts are being set up, `/auth` performs a **local fake
+login**: credentials are optional (empty inputs are fine), then you pick a
+hero name. The session is tracked in localStorage, survives refreshes, and
+only ends when you press the corner **⎋ Log out** button (which you can hide
+via its 🫥 toggle or from Profile → Account). The Supabase client/sync code in
+`src/lib/supabase/` stays in place — once your Supabase project is ready, the
+strict credential flow gets rewired on top of it (schema + seed below still
+apply).
+
+## Supabase setup (for when accounts get wired back in)
 
 1. Create a project at https://supabase.com/dashboard.
 2. In the SQL editor, paste and run **`supabase/schema.sql`** — it creates all

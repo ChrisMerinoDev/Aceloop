@@ -28,9 +28,16 @@ const SHOE_COLORS = ["#7c2d12", "#111111", "#b91c1c", "#f8f8f8", "#1e40af"];
 
 export default function ProfilePage() {
   const [mounted, setMounted] = useState(false);
-  const { character, setCharacter, characterHidden, toggleCharacterHidden } = useSettings();
+  const {
+    character,
+    setCharacter,
+    characterHidden,
+    toggleCharacterHidden,
+    logoutCornerHidden,
+    toggleLogoutCorner,
+  } = useSettings();
   const game = useGame();
-  const { user, configured } = useAuth();
+  const { configured } = useAuth();
   const [name, setName] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -142,33 +149,45 @@ export default function ProfilePage() {
           </PixelPanel>
 
           <PixelPanel title="Account">
-            {!configured ? (
-              <p className="text-ink-dim">
-                Playing in guest mode — progress lives in this browser. Add
-                Supabase keys (see README) to enable cloud saves and the
-                leaderboard.
-              </p>
-            ) : user ? (
+            {game.loggedIn ? (
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-ink">{user.email}</span>
+                <span className="text-ink">
+                  Logged in as <span className="text-gold-2">{game.username}</span>
+                </span>
                 <PixelButton
                   size="sm"
-                  variant="ghost"
+                  variant="red"
                   onClick={async () => {
+                    game.logOut();
                     await getSupabase()?.auth.signOut();
                   }}
                 >
-                  Sign Out
+                  ⎋ Log Out
                 </PixelButton>
               </div>
             ) : (
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-ink-dim">Guest mode — sign in to save to the cloud.</span>
+                <span className="text-ink-dim">
+                  Not logged in — progress still saves to this browser.
+                </span>
                 <Link href="/auth">
-                  <PixelButton size="sm">Sign In</PixelButton>
+                  <PixelButton size="sm">Log In</PixelButton>
                 </Link>
               </div>
             )}
+            {game.loggedIn && (
+              <div className="mt-3">
+                <PixelButton size="sm" variant="ghost" onClick={toggleLogoutCorner}>
+                  {logoutCornerHidden
+                    ? "Show corner log-out button"
+                    : "Hide corner log-out button"}
+                </PixelButton>
+              </div>
+            )}
+            <p className="text-ink-dim mt-3">
+              Credentials are relaxed for now; Supabase accounts get wired back
+              in later{configured ? "" : " (keys not configured yet)"}.
+            </p>
             <div className="mt-4 border-t-2 border-border-px pt-3">
               {confirmReset ? (
                 <div className="flex items-center gap-2 flex-wrap">
