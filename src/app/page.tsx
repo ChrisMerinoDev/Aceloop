@@ -1,103 +1,125 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { PixelButton, PixelPanel, PixelBadge } from "@/components/ui/pixel";
+import { PixelSprite } from "@/components/character/PixelSprite";
+import { useSettings } from "@/store/settings";
+import { QUESTIONS } from "@/content";
+import { glossaryTerms } from "@/content/glossary";
+
+export default function LandingPage() {
+  const character = useSettings((s) => s.character);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="mx-auto max-w-6xl px-4 pb-24">
+      {/* Hero */}
+      <section className="flex flex-col md:flex-row items-center gap-10 pt-16 pb-12">
+        <div className="flex-1">
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="font-pixel text-2xl md:text-3xl leading-relaxed text-ink"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            GRIND THE <span className="text-gold">INTERVIEW</span>
+            <br />
+            LIKE IT&apos;S AN <span className="text-mp">RPG</span>
+          </motion.h1>
+          <p className="mt-5 text-xl text-ink-dim max-w-xl">
+            The most-asked DSA and senior-frontend questions, forged into timed
+            boss fights. Solve them in a real editor, get scored like a real
+            interview, earn XP, keep your streak alive, and climb from Bronze
+            to Master.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/arena">
+              <PixelButton size="lg" variant="gold">
+                ⚔ Enter the Arena
+              </PixelButton>
+            </Link>
+            <Link href="/interview/two-sum">
+              <PixelButton size="lg" variant="green">
+                Try a Quest (no account)
+              </PixelButton>
+            </Link>
+            <Link href="/auth">
+              <PixelButton size="lg" variant="ghost">
+                Sign In / Save Progress
+              </PixelButton>
+            </Link>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+          className="pixel-border bg-panel p-8"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          <PixelSprite config={character} scale={8} />
+          <div className="font-pixel text-[8px] text-center text-ink-dim mt-3">
+            YOUR HERO ·{" "}
+            <Link href="/profile" className="text-mp hover:text-gold-2">
+              CUSTOMIZE
+            </Link>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Feature cards */}
+      <section className="grid md:grid-cols-3 gap-6 mt-6">
+        <PixelPanel title="⏱ Interview Simulation">
+          <p className="text-ink-dim">
+            A countdown timer, hidden test sets, and a 0-100 score with a
+            letter grade. Auto-submit at zero — just like the real pressure.
+          </p>
+        </PixelPanel>
+        <PixelPanel title="🗺 Level Map">
+          <p className="text-ink-dim">
+            {QUESTIONS.length} hand-built quests across 6 regions, from Novice
+            Meadows to Big-O Castle. Clear a region to unlock the next.
+          </p>
+        </PixelPanel>
+        <PixelPanel title="🔥 Streaks & Ranks">
+          <p className="text-ink-dim">
+            XP, combo multipliers, achievements, a daily flame, and spaced
+            repetition that resurfaces the quests that beat you.
+          </p>
+        </PixelPanel>
+        <PixelPanel title="📖 Learn Mode">
+          <p className="text-ink-dim">
+            Every quest ships a lesson: intuition → brute force → optimization
+            → Big-O → pitfalls. Learn the pattern, not the answer.
+          </p>
+        </PixelPanel>
+        <PixelPanel title="📜 Glossary">
+          <p className="text-ink-dim">
+            {glossaryTerms.length} advanced terms — event loop, hydration,
+            memoization, tree shaking — cross-linked inside every prompt.
+          </p>
+        </PixelPanel>
+        <PixelPanel title="🎮 Actually Fun">
+          <p className="text-ink-dim">
+            Chiptune soundtrack, confetti crits, a customizable pixel hero you
+            can walk around the screen in Game Mode. Nostalgia included.
+          </p>
+        </PixelPanel>
+      </section>
+
+      <section className="mt-14 text-center">
+        <div className="font-pixel text-[10px] text-ink-dim uppercase mb-4">
+          Patterns you&apos;ll master
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          {[...new Set(QUESTIONS.map((q) => q.pattern))].map((p) => (
+            <PixelBadge key={p} color="dim">
+              {p}
+            </PixelBadge>
+          ))}
+        </div>
+        <p className="font-pixel text-[9px] text-ink-dim mt-10 blink">
+          PRESS START — YOUR STREAK BEGINS TODAY
+        </p>
+      </section>
+    </main>
   );
 }
