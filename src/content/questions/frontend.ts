@@ -1835,6 +1835,13 @@ function buildFromSpec(spec) {
 
 function testPromiseAll(specs) {
   var inputs = specs.map(buildFromSpec);
+  // Pre-absorb rejections so a broken promiseAll cannot cause
+  // unhandled-rejection noise. Does not affect the inputs' behavior.
+  inputs.forEach(function (p) {
+    if (p && typeof p.then === "function") {
+      p.then(null, function () {});
+    }
+  });
   return promiseAll(inputs).then(
     function (value) { return { status: "fulfilled", value: value }; },
     function (reason) { return { status: "rejected", value: reason }; }
@@ -1872,6 +1879,13 @@ function buildFromSpec(spec) {
 
 function testPromiseAll(specs) {
   var inputs = specs.map(buildFromSpec);
+  // Pre-absorb rejections so a broken promiseAll cannot cause
+  // unhandled-rejection noise. Does not affect the inputs' behavior.
+  inputs.forEach(function (p) {
+    if (p && typeof p.then === "function") {
+      p.then(null, function () {});
+    }
+  });
   return promiseAll(inputs).then(
     function (value) { return { status: "fulfilled", value: value }; },
     function (reason) { return { status: "rejected", value: reason }; }
@@ -2247,5 +2261,684 @@ Registry + lifecycle flags + snapshot iteration is the skeleton of DOM event han
       { input: [[["on", "a", "L1"], ["off", "a", "L1"], ["on", "a", "L1"], ["emit", "a", "x"]]], expected: ["L1:x"], hidden: true, label: "re-subscribe after off" },
     ],
   },
-  // __CHUNK4__
+  // ==========================================================
+  // PART B — component builds (sandpack)
+  // ==========================================================
+  {
+    slug: "controlled-input",
+    title: "Controlled Input with Character Count",
+    category: "frontend",
+    difficulty: "easy",
+    level: 2,
+    pattern: "Controlled Components",
+    tags: ["react", "controlled-components", "state", "forms"],
+    timeLimitSeconds: 900,
+    editorType: "sandpack",
+    functionName: "",
+    testCases: [],
+    promptMd: `## Controlled Input with Character Count
+
+Build the "hello world" of React form handling: a controlled text input with a live character count and a clear button.
+
+### Requirements (the tests check these exact strings and roles)
+
+1. A text input labeled "Message" (the starter's label + id wiring already provides the accessible name — keep it).
+2. The input must be **controlled**: its displayed value comes from React state.
+3. Below the input, render the live character count exactly as "N characters" — e.g. "0 characters" initially, "5 characters" after typing "hello".
+4. A button with the visible text "Clear" that empties the input AND resets the count to "0 characters".
+
+### Example flow
+
+- Initial render: empty input, "0 characters".
+- User types "hello world": input shows it, text reads "11 characters".
+- User clicks Clear: input is empty again, "0 characters".
+`,
+    starterCode: controlledInputStarter,
+    solutionCode: controlledInputSolution,
+    solutionMd: `## Solution
+
+~~~jsx
+import { useState } from "react";
+
+export default function App() {
+  const [value, setValue] = useState("");
+  return (
+    <div>
+      <label htmlFor="message">Message</label>
+      <input
+        id="message"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <p>{value.length + " characters"}</p>
+      <button onClick={() => setValue("")}>Clear</button>
+    </div>
+  );
+}
+~~~
+
+One piece of state — the string — drives everything. The input's value comes FROM state and flows back INTO state via onChange; the count is not stored anywhere, it is computed from value.length on every render; and Clear is just setValue("") — the count resets automatically because it was never independent state.
+`,
+    lessonMd: `### Intuition
+
+React's core contract is UI = f(state). For form fields that means the input does not own its text — React state does, and the DOM input merely displays it. Once the string lives in state, every derived widget (a counter, a validator, a submit button's disabled flag) is a pure computation, and imperative features like "clear" become one-line state updates.
+
+### Naive approach
+
+The uncontrolled version leaves the text in the DOM and reads it on demand with a ref. It "works" until you need anything reactive: the character count cannot update live without listening to events anyway, and clearing means imperatively poking input.value — now the truth lives in two places and they drift.
+
+Another classic misstep is storing the count in ITS OWN useState and updating it inside onChange next to the text. Two states that must always agree is a synchronization bug waiting to happen — forget one setter in one code path (like the Clear button) and the UI lies.
+
+### The refinement
+
+Hold exactly one state atom: the string. Derive the count inline (value.length) during render. Wire value + onChange to make the input controlled, so typing flows through React and the displayed value can never disagree with state.
+
+### Why it works
+
+With a single source of truth, consistency is structural rather than disciplined: the count is recomputed from the same string the input displays, on the same render. Clear only has to reset the one atom; everything downstream follows. This is the smallest possible demonstration of the rule "don't store what you can compute".
+
+### Perf notes
+
+Re-rendering on every keystroke is normal and cheap — a render of this tree is a few object comparisons. Reach for optimization (debouncing, memo) only when derived work is genuinely expensive, and never by de-controlling the input.
+
+### Common pitfalls
+
+- Setting value without onChange (React logs a warning and the input freezes).
+- Duplicating derived data in state.
+- Clearing via ref/DOM mutation instead of state.
+- Using defaultValue and expecting reactive behavior.
+
+### Transferable pattern
+
+Controlled components + derived rendering is the foundation for every form abstraction (Formik, React Hook Form's controlled mode) and for search boxes, filters, and editors — master the one-field version and the twenty-field version is just a map.
+`,
+    sandpack: {
+      files: { "/App.js": controlledInputStarter },
+      solutionFiles: { "/App.js": controlledInputSolution },
+      testCode: controlledInputTests,
+    },
+  },
+  {
+    slug: "star-rating",
+    title: "Star Rating Widget",
+    category: "frontend",
+    difficulty: "easy",
+    level: 2,
+    pattern: "Derived State",
+    tags: ["react", "state", "accessibility", "events"],
+    timeLimitSeconds: 900,
+    editorType: "sandpack",
+    functionName: "",
+    testCases: [],
+    promptMd: `## Star Rating Widget
+
+Build the classic 5-star rating control with hover preview — the kind every design system ships.
+
+### Requirements (the tests check these exact strings, characters and roles)
+
+1. Five buttons, one per star, with aria-labels "Rate 1 star", "Rate 2 stars", ... "Rate 5 stars" (the starter already renders these — keep them).
+2. A star button's text is the filled star character (unicode 2605, prewired in the starter as an escape) when its number is at most the ACTIVE value, else the empty star (unicode 2606).
+3. Clicking star N commits the rating to N.
+4. Hovering star N (mouse enter) previews N filled stars WITHOUT changing the committed rating.
+5. When the mouse leaves the container div that directly wraps the five buttons, the preview reverts to the committed rating. Keep the buttons as direct children of that div — a test fires mouseLeave on the buttons' parent element.
+6. Below the stars, render the committed rating exactly as "Rating: N/5" ("Rating: 0/5" initially; unaffected by hovering).
+`,
+    starterCode: starRatingStarter,
+    solutionCode: starRatingSolution,
+    solutionMd: `## Solution
+
+~~~jsx
+import { useState } from "react";
+
+const STARS = [1, 2, 3, 4, 5];
+
+export default function App() {
+  const [rating, setRating] = useState(0);
+  const [hovered, setHovered] = useState(0);
+  const active = hovered > 0 ? hovered : rating;
+  return (
+    <div>
+      <div onMouseLeave={() => setHovered(0)}>
+        {STARS.map((n) => (
+          <button
+            key={n}
+            aria-label={"Rate " + n + (n === 1 ? " star" : " stars")}
+            onClick={() => setRating(n)}
+            onMouseEnter={() => setHovered(n)}
+          >
+            {n <= active ? "\\u2605" : "\\u2606"}
+          </button>
+        ))}
+      </div>
+      <p>{"Rating: " + rating + "/5"}</p>
+    </div>
+  );
+}
+~~~
+
+Two independent state atoms — the committed rating and the transient hover — and one derived value: active, which prefers the hover when present. Every star then renders from a single comparison, n <= active. The commit path (click) and the preview path (hover) never touch each other's state, which is exactly why hovering cannot corrupt the rating and the caption below reads from rating alone.
+`,
+    lessonMd: `### Intuition
+
+A star rating looks like five interactive things, but it is really two numbers: what the user committed, and what they are pointing at. Every visual question ("is star 3 filled?") reduces to one comparison against a single derived value. Recognizing that collapses the component from twenty imaginary edge cases to three lines of state logic.
+
+### Naive approach
+
+Beginners often store an array of five booleans and try to keep it consistent on click and hover — flipping ranges of flags imperatively. It works until hover-then-unhover has to restore the committed view, at which point you need the committed value anyway, and the booleans were derived data all along. Another dead end: mutating star appearance with CSS-only hover, which cannot express "preview overrides committed but only while hovering" once click state exists.
+
+### The refinement
+
+Model the domain minimally: rating (0-5, committed) and hovered (0 when not hovering). Derive active = hovered || rating each render, and paint star n filled iff n <= active. Hover handlers write only hovered; click writes only rating; mouse-leave on the wrapping container resets hovered to 0.
+
+### Why it works
+
+Separating transient interaction state from committed state means the preview is non-destructive by construction — reverting is just clearing hovered, because the committed value was never touched. Deriving active at render time (instead of storing it) removes any chance of the two drifting. Putting mouseLeave on the container rather than each button avoids flicker as the pointer crosses star boundaries: leaving star 2 for star 3 never blanks the preview.
+
+### Accessibility notes
+
+Real buttons give you keyboard focus and click-on-Enter for free; per-star aria-labels ("Rate 3 stars") make the control legible to screen readers where five identical glyph buttons would not be. A production version would also expose the group as role radiogroup with aria-checked.
+
+### Common pitfalls
+
+- Storing derived per-star fill state.
+- Resetting the RATING on mouse leave instead of the hover.
+- mouseLeave per star causing preview flicker.
+- Divs with onClick instead of buttons — invisible to keyboards.
+
+### Transferable pattern
+
+"Committed value + transient preview + derived display" reappears in sliders while dragging, color pickers, drag-and-drop targets, and menu highlighting — any UI where pointing must preview without committing.
+`,
+    sandpack: {
+      files: { "/App.js": starRatingStarter },
+      solutionFiles: { "/App.js": starRatingSolution },
+      testCode: starRatingTests,
+    },
+  },
+  {
+    slug: "accordion",
+    title: "Accessible Accordion",
+    category: "frontend",
+    difficulty: "medium",
+    level: 3,
+    pattern: "Lifted State",
+    tags: ["react", "accessibility", "keyboard-navigation", "aria"],
+    timeLimitSeconds: 1800,
+    editorType: "sandpack",
+    functionName: "",
+    testCases: [],
+    promptMd: `## Accessible Accordion
+
+Build a three-section accordion where at most ONE section is open at a time, with proper ARIA state and arrow-key navigation between headers.
+
+The starter provides the data: sections titled "Section 1"–"Section 3" with bodies "Content 1"–"Content 3".
+
+### Requirements (the tests check these exact strings, attributes and roles)
+
+1. Each section header is a button whose accessible name is its title ("Section 1", etc.).
+2. Initially ALL panels are closed — none of the "Content N" texts may be in the document.
+3. Clicking a closed header opens its panel (its "Content N" text renders) and closes whichever other panel was open. Panels must render ONLY while open (conditional render, not CSS hiding).
+4. Clicking an open header closes it (back to none open).
+5. Every header button carries aria-expanded: "true" when its panel is open, "false" otherwise.
+6. Keyboard support on the header buttons: ArrowDown moves focus to the next header, ArrowUp to the previous, both wrapping around the ends (a test asserts document.activeElement).
+`,
+    starterCode: accordionStarter,
+    solutionCode: accordionSolution,
+    solutionMd: `## Solution
+
+~~~jsx
+import { useState, useRef } from "react";
+
+const SECTIONS = [
+  { title: "Section 1", content: "Content 1" },
+  { title: "Section 2", content: "Content 2" },
+  { title: "Section 3", content: "Content 3" },
+];
+
+export default function App() {
+  const [openIndex, setOpenIndex] = useState(-1);
+  const refs = useRef([]);
+
+  function onKeyDown(e, i) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      refs.current[(i + 1) % SECTIONS.length].focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      refs.current[(i - 1 + SECTIONS.length) % SECTIONS.length].focus();
+    }
+  }
+
+  return (
+    <div>
+      {SECTIONS.map((section, i) => (
+        <div key={section.title}>
+          <h3>
+            <button
+              ref={(el) => {
+                refs.current[i] = el;
+              }}
+              aria-expanded={openIndex === i}
+              onClick={() => setOpenIndex(openIndex === i ? -1 : i)}
+              onKeyDown={(e) => onKeyDown(e, i)}
+            >
+              {section.title}
+            </button>
+          </h3>
+          {openIndex === i && <div role="region">{section.content}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+~~~
+
+The exclusivity rule ("one open at a time") is encoded in the SHAPE of the state: a single openIndex integer cannot represent two open panels, so the invariant is unbreakable. Toggling is one ternary — clicking the open section resets to -1, anything else adopts the clicked index. Focus movement uses an array of refs plus modular arithmetic for wrap-around; preventDefault stops the arrows from scrolling the page.
+`,
+    lessonMd: `### Intuition
+
+The requirement "only one open at a time" is a state-modeling hint: do not track per-section booleans and police them, choose a representation where the rule cannot be violated. A single "which index is open" integer makes the invariant a property of the data type, not of your discipline.
+
+### Naive approach
+
+An isOpen boolean inside each section component feels natural — each section manages itself. But mutual exclusion is a relationship BETWEEN sections, and siblings cannot see each other's state. You end up threading callbacks or syncing effects, and one missed path shows two open panels. Similarly, hiding panels with display:none keeps their content in the accessibility tree and in text queries — the tests (like screen readers) still "see" closed content.
+
+### The refinement
+
+Lift the state to the parent: openIndex (-1 for none). Each header renders from a pure comparison (openIndex === i), the click handler is a one-line ternary toggle, and panels are conditionally RENDERED so closed content genuinely does not exist. For the ARIA pattern, each button reflects aria-expanded, and arrow keys move real DOM focus via a ref array with modular wrap-around.
+
+### Why it works
+
+Lifting turns a coordination problem into a rendering problem — the parent owns one value, and every section derives its appearance from it, so all sections update atomically in a single state change. The ref array bridges React's declarative world to the imperative one for focus, which is not renderable state: focus must be moved with .focus(), and keeping refs indexed by position makes next/previous a pure index computation.
+
+### Accessibility notes
+
+This mirrors the WAI-ARIA accordion pattern: header buttons inside headings, aria-expanded on the trigger, arrow-key navigation between triggers. Real buttons supply Enter/Space activation and focusability for free. A fuller version adds aria-controls and labelled regions.
+
+### Common pitfalls
+
+- Per-item open state that lets multiple panels open.
+- CSS-hiding instead of unmounting when the spec says content must be gone.
+- Forgetting preventDefault, so arrows scroll the page while moving focus.
+- Off-by-one on wrap-around (negative modulo needs the "+ length" trick).
+
+### Transferable pattern
+
+"Lift shared state, derive per-item props, refs for focus" is the recipe for tabs, radio groups, menus, and carousels — the entire family of single-selection composite widgets.
+`,
+    sandpack: {
+      files: { "/App.js": accordionStarter },
+      solutionFiles: { "/App.js": accordionSolution },
+      testCode: accordionTests,
+    },
+  },
+  {
+    slug: "todo-list",
+    title: "Todo List",
+    category: "frontend",
+    difficulty: "medium",
+    level: 3,
+    pattern: "Immutable Updates",
+    tags: ["react", "lists", "state", "immutability", "forms"],
+    timeLimitSeconds: 1800,
+    editorType: "sandpack",
+    functionName: "",
+    testCases: [],
+    promptMd: `## Todo List
+
+Build the canonical list-CRUD exercise: add todos, toggle completion, delete, and show how many remain.
+
+### Requirements (the tests check these exact strings and roles)
+
+1. A text input with aria-label "New todo" and a button labeled "Add".
+2. Clicking Add appends a todo with the input's trimmed text and clears the input. Empty or whitespace-only input must add NOTHING.
+3. Each todo renders inside the list with:
+   - a checkbox (role checkbox) reflecting its completed state — clicking it toggles completion,
+   - the todo's text,
+   - a button labeled "Delete" that removes exactly that todo.
+4. Below the list, render the number of NOT-completed todos exactly as "N items left" — yes, even for one: "1 items left". Initially "0 items left".
+5. All list updates must be immutable (new arrays via map/filter/concat — no push/splice on state).
+
+### Example flow
+
+- Add "Task A" and "Task B" → "2 items left".
+- Check Task A's checkbox → "1 items left"; uncheck → "2 items left".
+- Delete Task A → only Task B remains, "1 items left".
+`,
+    starterCode: todoListStarter,
+    solutionCode: todoListSolution,
+    solutionMd: `## Solution
+
+~~~jsx
+import { useState } from "react";
+
+let nextId = 1;
+
+export default function App() {
+  const [text, setText] = useState("");
+  const [todos, setTodos] = useState([]);
+  const remaining = todos.filter((t) => !t.done).length;
+
+  function addTodo() {
+    const trimmed = text.trim();
+    if (trimmed === "") return;
+    setTodos(todos.concat([{ id: nextId++, text: trimmed, done: false }]));
+    setText("");
+  }
+
+  function toggle(id) {
+    setTodos(
+      todos.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
+    );
+  }
+
+  function remove(id) {
+    setTodos(todos.filter((t) => t.id !== id));
+  }
+
+  return (
+    <div>
+      <input
+        aria-label="New todo"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <button onClick={addTodo}>Add</button>
+      <ul>
+        {todos.map((todo) => (
+          <li key={todo.id}>
+            <input
+              type="checkbox"
+              checked={todo.done}
+              onChange={() => toggle(todo.id)}
+            />
+            <span>{todo.text}</span>
+            <button onClick={() => remove(todo.id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
+      <p>{remaining + " items left"}</p>
+    </div>
+  );
+}
+~~~
+
+The three mutations map onto the three immutable array idioms: add is concat, toggle is map-with-replacement (spreading the matched todo into a new object), delete is filter. The remaining count is derived with a filter at render time — never stored. Stable ids (not array indexes) key the list so React can track items across deletions.
+`,
+    lessonMd: `### Intuition
+
+A todo list is the smallest app with the full state-management food groups: a draft (the input), a collection (the todos), and an aggregate (the remaining count). The design question is what to store — and the answer is: the first two only. The count is a view of the collection, not a peer of it.
+
+### Naive approach
+
+Two families of bugs dominate. First, mutation: todos.push(newTodo) followed by setTodos(todos) hands React the SAME array reference, the shallow-equality check sees no change, and nothing re-renders — the classic "my list doesn't update" question. Second, derived state: keeping remainingCount in its own useState and remembering to update it in add, toggle, AND delete. Miss one (usually delete-of-a-completed-item) and the count lies.
+
+### The refinement
+
+Treat state as immutable values and every update as producing a new array: concat to add, map returning a new object for the one toggled item, filter to remove. Derive the count during render with a filter. Key todos by a stable id captured at creation, not by index.
+
+### Why it works
+
+New references make change detection trivially correct — React re-renders because the array IS different. Deriving the count from todos makes it correct by construction in every code path, including ones you have not written yet. Stable keys let React reconcile the list correctly when the middle item disappears; index keys would re-associate DOM (including checkbox state!) with the wrong items after a delete.
+
+### Perf notes
+
+Rebuilding an array of n todos per update is O(n) with tiny constants — irrelevant until thousands of items, at which point virtualization matters long before immutability costs do.
+
+### Common pitfalls
+
+- push/splice on state arrays (no re-render).
+- Spreading the array but mutating the inner todo object (toggle "works" but breaks memoized children).
+- Index-as-key with deletions.
+- Forgetting to trim / reject empty input, or clearing the input before reading it.
+
+### Transferable pattern
+
+concat / map-replace / filter are THE three verbs of normalized UI state — the same shapes you write in Redux reducers, cart updates, notification lists, and optimistic UI patches.
+`,
+    sandpack: {
+      files: { "/App.js": todoListStarter },
+      solutionFiles: { "/App.js": todoListSolution },
+      testCode: todoListTests,
+    },
+  },
+  {
+    slug: "fetch-user-card",
+    title: "Fetch User Card",
+    category: "frontend",
+    difficulty: "medium",
+    level: 4,
+    pattern: "Async UI States",
+    tags: ["react", "async", "fetch", "error-handling", "race-conditions"],
+    timeLimitSeconds: 1800,
+    editorType: "sandpack",
+    functionName: "",
+    testCases: [],
+    promptMd: `## Fetch User Card
+
+Build the archetypal async UI: buttons that load a user and a card that walks through idle → loading → success/error.
+
+The starter provides a fake API you must NOT modify:
+
+~~~js
+// resolves after 100ms with { id, name: "User <id>", email: "user<id>@example.com" }
+// rejects for id 0 with new Error("User not found")
+fetchUser(id)
+~~~
+
+### Requirements (the tests check these exact strings and roles)
+
+1. Three buttons labeled exactly "Load user 1", "Load user 2", "Load user 0".
+2. Before any load, render exactly: "No user loaded".
+3. While a request is in flight, render exactly: "Loading..." — and none of the other states.
+4. On success, render the user's name (e.g. "User 1") and email (e.g. "user1@example.com"); the loading text disappears.
+5. On failure (user 0), render exactly: "Error: User not found".
+6. Exactly one of the four states is visible at any moment. Loading a new user after an error clears the error; a newly loaded user replaces the previous card.
+7. Senior touch: guard against stale responses — if the user clicks another button while a request is pending, only the LATEST request may update the UI (track a request id or ignore outdated resolutions).
+`,
+    starterCode: fetchUserCardStarter,
+    solutionCode: fetchUserCardSolution,
+    solutionMd: `## Solution
+
+~~~jsx
+import { useState, useRef } from "react";
+
+// fetchUser provided (resolves after 100ms, rejects for id 0)
+
+export default function App() {
+  const [state, setState] = useState({ status: "idle", user: null, error: "" });
+  const requestRef = useRef(0);
+
+  function load(id) {
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
+    setState({ status: "loading", user: null, error: "" });
+    fetchUser(id).then(
+      (user) => {
+        if (requestRef.current !== requestId) return; // stale response
+        setState({ status: "success", user: user, error: "" });
+      },
+      (err) => {
+        if (requestRef.current !== requestId) return; // stale response
+        setState({ status: "error", user: null, error: err.message });
+      }
+    );
+  }
+
+  return (
+    <div>
+      <button onClick={() => load(1)}>Load user 1</button>
+      <button onClick={() => load(2)}>Load user 2</button>
+      <button onClick={() => load(0)}>Load user 0</button>
+      {state.status === "idle" && <p>No user loaded</p>}
+      {state.status === "loading" && <p>Loading...</p>}
+      {state.status === "error" && <p>{"Error: " + state.error}</p>}
+      {state.status === "success" && (
+        <div>
+          <h2>{state.user.name}</h2>
+          <p>{state.user.email}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+~~~
+
+The core move is a single status field acting as a state machine — idle, loading, success, error — with the payload (user or error message) stored alongside it in one object, updated atomically. Rendering is then a mutually exclusive switch on status, so impossible UI (spinner AND error) cannot happen. The ref-counter guards against out-of-order responses: each click bumps the counter, each callback checks it still owns the latest ticket before touching state.
+`,
+    lessonMd: `### Intuition
+
+Async UI is a state machine wearing a component costume. A request is always in exactly one of four states — idle, loading, success, error — and the honest representation is a single status field, not a pile of independent booleans. Once the machine is explicit, rendering is a switch statement and correctness follows the shape of the data.
+
+### Naive approach
+
+The boolean soup: isLoading, user, errorMessage as three separate states. Now success must remember to clear BOTH the loading flag and the stale error; error must clear loading and user; and one missed setter shows a spinner next to an error banner — the checkable symptom of an unrepresentable-states problem. The second naive omission is invisible in casual testing: fire request A, then request B; if A resolves after B, its late callback overwrites B's fresh result with stale data. Latency reordering makes "last click wins" false unless you enforce it.
+
+### The refinement
+
+Collapse to one atom: { status, user, error }, updated atomically per transition so no intermediate mixed state ever renders. For staleness, keep a monotonically increasing request id in a ref (state would re-render and lag); a callback may commit only if its captured id still equals the current one. A ref, not a variable in the component body, because it must survive re-renders without triggering them.
+
+### Why it works
+
+The discriminated union makes illegal combinations unrepresentable — status can hold one value, so the render switch is exhaustive and exclusive. The ticket check linearizes concurrent responses: whichever request started LAST wins, regardless of arrival order, which matches user intent.
+
+### Perf and production notes
+
+The same skeleton underlies every data-fetching library — React Query's status field and query invalidation are this pattern industrialized, plus caching and retries. With AbortController you would actually cancel the stale request instead of ignoring it.
+
+### Common pitfalls
+
+- Boolean soup and partially-updated state.
+- No stale-response guard (the classic search-box race).
+- Swallowing rejections (unhandled promise) instead of transitioning to error.
+- Storing the request id in useState, which is always one render behind.
+
+### Transferable pattern
+
+"Status enum + atomic transitions + latest-ticket-wins" applies to autocomplete, tab-switch data loading, form submissions, and file uploads — anywhere responses can arrive out of order.
+`,
+    sandpack: {
+      files: { "/App.js": fetchUserCardStarter },
+      solutionFiles: { "/App.js": fetchUserCardSolution },
+      testCode: fetchUserCardTests,
+    },
+  },
+  {
+    slug: "debounced-search",
+    title: "Debounced Search Filter",
+    category: "frontend",
+    difficulty: "medium",
+    level: 4,
+    pattern: "Debounced Effects",
+    tags: ["react", "useEffect", "debounce", "timers", "derived-state"],
+    timeLimitSeconds: 1800,
+    editorType: "sandpack",
+    functionName: "",
+    testCases: [],
+    promptMd: `## Debounced Search Filter
+
+Build a search box that filters a provided list — but applies the query only after the user stops typing for 300ms, showing a pending indicator in between.
+
+The starter provides ITEMS, a list of 10 fruit names ("apple", "apricot", "banana", ..., "peach"). Do not modify the list.
+
+### Requirements (the tests check these exact strings and roles)
+
+1. A text input with aria-label "Search" (kept from the starter), controlled by state.
+2. Initially (empty query) ALL 10 items render as list items (li elements).
+3. The applied query updates 300ms after the LAST keystroke (debounced — rapid changes reset the timer; use setTimeout in an effect and clear it on re-run).
+4. While the input text differs from the currently applied query, render exactly "Searching..." INSTEAD of the list.
+5. Once applied, show items whose name contains the query, case-insensitively, as li elements in their original order.
+6. If nothing matches, render exactly: "No results".
+
+### Example flow
+
+- Type "ap": "Searching..." appears immediately; ~300ms later the list shows apple, apricot, grape, grapefruit.
+- Quickly type "a" then "ban": only one filter application happens, for "ban" → banana.
+- Type "KIWI": kiwi still matches (case-insensitive).
+`,
+    starterCode: debouncedSearchStarter,
+    solutionCode: debouncedSearchSolution,
+    solutionMd: `## Solution
+
+~~~jsx
+import { useState, useEffect } from "react";
+
+// ITEMS provided
+
+export default function App() {
+  const [text, setText] = useState("");
+  const [query, setQuery] = useState("");
+  const pending = text !== query;
+
+  useEffect(() => {
+    const id = setTimeout(() => setQuery(text), 300);
+    return () => clearTimeout(id);
+  }, [text]);
+
+  const results = ITEMS.filter((item) =>
+    item.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div>
+      <input
+        aria-label="Search"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      {pending ? (
+        <p>Searching...</p>
+      ) : results.length === 0 ? (
+        <p>No results</p>
+      ) : (
+        <ul>
+          {results.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+~~~
+
+Two states model the two timelines: text is what the user typed (instant), query is what the app has applied (lagging by 300ms of quiet). The debounce is an effect keyed on text — each keystroke schedules the promotion of text into query and the cleanup cancels the previous schedule, so only the final keystroke of a burst survives. Both derived values come free: pending is the inequality of the two strings, and results is a filter over the applied query.
+`,
+    lessonMd: `### Intuition
+
+A debounced search has two clocks: what the user typed (now) and what the app has acted on (slightly behind). Model both explicitly — text and query — and the whole feature falls out: the pending indicator is literally the statement "these two disagree", and the debounce is just the rule for when the second catches up to the first.
+
+### Naive approach
+
+Filtering directly from text on every keystroke works here (10 items) but defeats the exercise: against a real API it is a request per keystroke. The next attempt — calling a debounced function inside onChange — trips over React's render model: a new debounced closure is created each render, so the "shared" timer state resets and nothing is actually debounced. And skipping cleanup in the effect leaks timers: type five characters, get five delayed setQuery calls marching through obsolete values.
+
+### The refinement
+
+Debounce with the effect lifecycle itself. useEffect keyed on text schedules setQuery(text) in 300ms and returns a cleanup that cancels it. A new keystroke re-runs the effect: cleanup cancels the old timer, the new one starts — cancel-and-reschedule, expressed in React's native idiom. pending and results are computed at render, never stored.
+
+### Why it works
+
+Effect cleanup runs before the next effect for the same dependency, which gives exactly one live timer at any moment — the invariant a hand-rolled debounce maintains manually. Because query updates only via that timer, it is guaranteed to represent a "settled" input. Deriving pending as text !== query means the indicator can never stick: the moment query catches up, the same render that commits it recomputes pending as false.
+
+### Perf notes
+
+For local data the win is smoothness; for remote data a 300ms debounce typically cuts request volume by 5-10x. Pair it with the stale-response guard from the fetch exercise when queries hit a server, since responses can still return out of order.
+
+### Common pitfalls
+
+- Recreating a debounced function every render (debounces nothing).
+- No cleanup → stale timers applying old queries.
+- Storing results in state via a second effect (derived-state drift + extra renders).
+- Forgetting case normalization on BOTH sides of the comparison.
+
+### Transferable pattern
+
+"Fast state + settled state + effect-with-cleanup promoting one to the other" is the React-native form of debouncing, and the same structure handles autosave drafts, validation-as-you-type, and resize-driven layout.
+`,
+    sandpack: {
+      files: { "/App.js": debouncedSearchStarter },
+      solutionFiles: { "/App.js": debouncedSearchSolution },
+      testCode: debouncedSearchTests,
+    },
+  },
 ];
