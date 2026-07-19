@@ -8,6 +8,7 @@ import { useSettings } from "@/store/settings";
 import { rankForXp } from "@/lib/scoring";
 import { cn } from "@/lib/utils";
 import { PixelButton } from "@/components/ui/pixel";
+import { chiptune } from "@/components/audio/chiptune";
 
 const LINKS = [
   { href: "/arena", label: "Arena" },
@@ -76,7 +77,12 @@ export function Nav() {
               <PixelButton
                 size="sm"
                 variant="ghost"
-                onClick={toggleMuted}
+                onClick={() => {
+                  // Unlock audio inside the gesture before flipping state; the
+                  // MusicController effect that starts the loop runs too late.
+                  if (muted) chiptune.unlock();
+                  toggleMuted();
+                }}
                 title={muted ? "Unmute the theme song" : "Mute the theme song"}
                 aria-label={muted ? "Unmute music" : "Mute music"}
               >

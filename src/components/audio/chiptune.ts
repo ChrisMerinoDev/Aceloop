@@ -95,6 +95,17 @@ class ChiptuneEngine {
     }
   }
 
+  /**
+   * Create + resume the AudioContext. MUST be called synchronously from a
+   * user-gesture handler (e.g. the mute button's onClick) — browsers,
+   * especially Safari, only unlock audio inside the gesture's call stack,
+   * not from an async React effect that runs after the click.
+   */
+  unlock() {
+    const ctx = this.ensure();
+    void ctx.resume();
+  }
+
   start() {
     const ctx = this.ensure();
     void ctx.resume();
