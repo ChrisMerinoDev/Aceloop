@@ -24,7 +24,19 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ),
 });
 
-import { SandpackRoom } from "./SandpackRoom";
+// Sandpack (~200KB) is only needed for frontend questions. Code-split it so
+// DSA questions (which use Monaco) never download the bundler.
+const SandpackRoom = dynamic(
+  () => import("./SandpackRoom").then((m) => m.SandpackRoom),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex-1 grid place-items-center font-pixel text-[10px] text-ink-dim">
+        LOADING SANDBOX<span className="blink">…</span>
+      </div>
+    ),
+  }
+);
 
 export interface SandpackResultsHandle {
   passed: number;

@@ -2,9 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSettings } from "@/store/settings";
+import { useGame } from "@/store/game";
+import { levelForXp } from "@/lib/scoring";
 import { PixelSprite } from "./PixelSprite";
 
 const SPEED = 260; // px per second
+const SPRITE_SCALE = 6;
+const SPRITE_W = 16 * SPRITE_SCALE; // sprite is 16x22 base units
+const SPRITE_H = 22 * SPRITE_SCALE;
 const KEYS = new Set([
   "w", "a", "s", "d",
   "arrowup", "arrowdown", "arrowleft", "arrowright",
@@ -16,6 +21,9 @@ const KEYS = new Set([
  */
 export function CharacterOverlay() {
   const { gameMode, characterHidden, character } = useSettings();
+  const username = useGame((s) => s.username);
+  const xp = useGame((s) => s.xp);
+  const level = levelForXp(xp);
   const [walking, setWalking] = useState(false);
   const [facing, setFacing] = useState<"left" | "right">("right");
   const posRef = useRef({ x: 40, y: 0 });
@@ -25,7 +33,7 @@ export function CharacterOverlay() {
 
   // Start at the bottom-left once we know the viewport.
   useEffect(() => {
-    posRef.current.y = window.innerHeight - 120;
+    posRef.current.y = window.innerHeight - SPRITE_H;
     if (elRef.current) {
       elRef.current.style.transform = `translate(${posRef.current.x}px, ${posRef.current.y}px)`;
     }
@@ -81,8 +89,8 @@ export function CharacterOverlay() {
       if (moving) {
         const len = Math.hypot(dx, dy) || 1;
         const pos = posRef.current;
-        pos.x = Math.max(0, Math.min(window.innerWidth - 70, pos.x + (dx / len) * SPEED * dt));
-        pos.y = Math.max(0, Math.min(window.innerHeight - 100, pos.y + (dy / len) * SPEED * dt));
+        pos.x = Math.max(0, Math.min(window.innerWidth - SPRITE_W, pos.x + (dx / len) * SPEED * dt));
+        pos.y = Math.max(0, Math.min(window.innerHeight - SPRITE_H, pos.y + (dy / len) * SPEED * dt));
         if (elRef.current) {
           elRef.current.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
         }
@@ -109,14 +117,16 @@ export function CharacterOverlay() {
       style={{ transform: `translate(${posRef.current.x}px, ${posRef.current.y}px)` }}
       aria-hidden
     >
-      <div className={walking ? "sprite-walk" : undefined}>
-        <PixelSprite config={character} scale={4} walking={walking} facing={facing} />
-      </div>
-      {gameMode && (
-        <div className="font-pixel text-[7px] text-gold-2 text-center mt-1 bg-black/60 px-1">
-          WASD
+      <div className="relative w-fit">
+        {username?.trim() && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 font-pixel text-[11px] text-gold text-center whitespace-nowrap drop-shadow-[1px_1px_0_#000]">
+            <span className="text-mp">Lv{level}</span> {username}
+          </div>
+        )}
+        <div className={walking ? "sprite-walk" : undefined}>
+          <PixelSprite config={character} scale={SPRITE_SCALE} walking={walking} facing={facing} />
         </div>
-      )}
+      </div>
     </div>
   );
 }

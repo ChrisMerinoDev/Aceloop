@@ -8,7 +8,7 @@ import { useSettings } from "@/store/settings";
 import { rankForXp } from "@/lib/scoring";
 import { cn } from "@/lib/utils";
 import { PixelButton } from "@/components/ui/pixel";
-import { chiptune } from "@/components/audio/chiptune";
+import { chiptune, TRACKS } from "@/components/audio/chiptune";
 
 const LINKS = [
   { href: "/arena", label: "Arena" },
@@ -23,8 +23,16 @@ export function Nav() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const { xp, streakCount } = useGame();
-  const { muted, gameMode, characterHidden, toggleMuted, toggleGameMode, toggleCharacterHidden } =
-    useSettings();
+  const {
+    muted,
+    gameMode,
+    characterHidden,
+    musicTrack,
+    toggleMuted,
+    toggleGameMode,
+    toggleCharacterHidden,
+    setMusicTrack,
+  } = useSettings();
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -87,6 +95,20 @@ export function Nav() {
                 aria-label={muted ? "Unmute music" : "Mute music"}
               >
                 {muted ? "🔇" : "🔊"}
+              </PixelButton>
+              <PixelButton
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  const next = (musicTrack + 1) % TRACKS.length;
+                  chiptune.unlock();
+                  setMusicTrack(next);
+                }}
+                title={`Music: ${TRACKS[musicTrack]?.name ?? "?"} — click to change`}
+                aria-label="Change music track"
+                className="hidden sm:inline-flex"
+              >
+                🎵 {TRACKS[musicTrack]?.name ?? ""}
               </PixelButton>
               <PixelButton
                 size="sm"

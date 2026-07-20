@@ -1,38 +1,94 @@
 "use client";
 
 /**
- * A tiny Web Audio chiptune engine: an original 8-bit RPG overworld loop
+ * A tiny Web Audio chiptune engine: original 8-bit loops
  * (square-wave lead + triangle bass), no audio assets needed.
+ * Multiple selectable tracks — switch with `chiptune.setTrack(i)`.
  */
-
-const TEMPO = 152; // bpm
-const STEP = 60 / TEMPO / 2; // eighth-note seconds
 
 const midi = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
-// A-minor overworld theme, 4 bars of eighth notes. 0 = rest.
-const LEAD: number[] = [
-  69, 72, 76, 81, 79, 76, 72, 76,
-  77, 81, 79, 77, 76, 72, 74, 76,
-  69, 72, 76, 79, 77, 76, 74, 72,
-  71, 74, 67, 71, 72, 76, 69, 0,
-];
+export interface ChiptuneTrack {
+  name: string;
+  tempo: number; // bpm
+  lead: number[]; // eighth notes, MIDI; 0 = rest
+  bass: number[]; // quarter-ish notes, MIDI; 0 = rest
+  sparkle: number[]; // arpeggio layer on the repeat
+}
 
-// Bass: quarter notes (every 2 steps).
-const BASS: number[] = [
-  45, 0, 45, 0, 41, 0, 41, 0,
-  41, 0, 41, 0, 43, 0, 43, 0,
-  45, 0, 45, 0, 41, 0, 41, 0,
-  43, 0, 43, 0, 45, 0, 45, 0,
-];
+// A-minor overworld theme — bright, adventurous.
+const OVERWORLD: ChiptuneTrack = {
+  name: "Overworld",
+  tempo: 152,
+  lead: [
+    69, 72, 76, 81, 79, 76, 72, 76,
+    77, 81, 79, 77, 76, 72, 74, 76,
+    69, 72, 76, 79, 77, 76, 74, 72,
+    71, 74, 67, 71, 72, 76, 69, 0,
+  ],
+  bass: [
+    45, 0, 45, 0, 41, 0, 41, 0,
+    41, 0, 41, 0, 43, 0, 43, 0,
+    45, 0, 45, 0, 41, 0, 41, 0,
+    43, 0, 43, 0, 45, 0, 45, 0,
+  ],
+  sparkle: [
+    0, 0, 84, 0, 0, 0, 88, 0,
+    0, 0, 89, 0, 0, 0, 88, 0,
+    0, 0, 84, 0, 0, 0, 86, 0,
+    0, 0, 83, 0, 0, 0, 81, 0,
+  ],
+};
 
-// Arpeggio sparkle layer on the repeat for variety.
-const SPARKLE: number[] = [
-  0, 0, 84, 0, 0, 0, 88, 0,
-  0, 0, 89, 0, 0, 0, 88, 0,
-  0, 0, 84, 0, 0, 0, 86, 0,
-  0, 0, 83, 0, 0, 0, 81, 0,
-];
+// D-minor dungeon crawl — slower, moodier, sparse.
+const DUNGEON: ChiptuneTrack = {
+  name: "Dungeon",
+  tempo: 104,
+  lead: [
+    62, 0, 65, 0, 69, 0, 65, 62,
+    60, 0, 62, 0, 65, 0, 0, 0,
+    62, 0, 65, 0, 70, 0, 69, 65,
+    64, 0, 62, 0, 61, 0, 62, 0,
+  ],
+  bass: [
+    38, 0, 0, 0, 38, 0, 0, 0,
+    36, 0, 0, 0, 36, 0, 0, 0,
+    41, 0, 0, 0, 41, 0, 0, 0,
+    37, 0, 0, 0, 38, 0, 0, 0,
+  ],
+  sparkle: [
+    0, 0, 0, 74, 0, 0, 0, 77,
+    0, 0, 0, 72, 0, 0, 0, 74,
+    0, 0, 0, 77, 0, 0, 0, 81,
+    0, 0, 0, 74, 0, 0, 0, 73,
+  ],
+};
+
+// C-major boss rush — fast, driving, tense.
+const BOSS: ChiptuneTrack = {
+  name: "Boss Rush",
+  tempo: 176,
+  lead: [
+    72, 72, 75, 72, 79, 0, 75, 72,
+    70, 70, 72, 70, 77, 0, 72, 70,
+    72, 72, 75, 79, 84, 0, 82, 79,
+    77, 75, 74, 72, 71, 74, 72, 0,
+  ],
+  bass: [
+    48, 48, 0, 48, 48, 0, 48, 0,
+    46, 46, 0, 46, 46, 0, 46, 0,
+    48, 48, 0, 48, 48, 0, 48, 0,
+    43, 43, 0, 43, 43, 0, 43, 0,
+  ],
+  sparkle: [
+    0, 87, 0, 0, 0, 91, 0, 0,
+    0, 84, 0, 0, 0, 89, 0, 0,
+    0, 87, 0, 0, 0, 91, 0, 0,
+    0, 86, 0, 0, 0, 83, 0, 0,
+  ],
+};
+
+export const TRACKS: ChiptuneTrack[] = [OVERWORLD, DUNGEON, BOSS];
 
 class ChiptuneEngine {
   private ctx: AudioContext | null = null;
@@ -41,6 +97,15 @@ class ChiptuneEngine {
   private nextStepTime = 0;
   private step = 0;
   private pass = 0;
+  private trackIndex = 0;
+
+  private get track(): ChiptuneTrack {
+    return TRACKS[this.trackIndex] ?? TRACKS[0];
+  }
+
+  private get stepSeconds(): number {
+    return 60 / this.track.tempo / 2; // eighth-note seconds
+  }
 
   private ensure(): AudioContext {
     if (!this.ctx) {
@@ -78,6 +143,8 @@ class ChiptuneEngine {
   private schedule() {
     const ctx = this.ctx;
     if (!ctx) return;
+    const { lead: LEAD, bass: BASS, sparkle: SPARKLE } = this.track;
+    const STEP = this.stepSeconds;
     while (this.nextStepTime < ctx.currentTime + 0.15) {
       const i = this.step % LEAD.length;
       const t = this.nextStepTime;
@@ -93,6 +160,23 @@ class ChiptuneEngine {
       if (this.step % LEAD.length === 0) this.pass++;
       this.nextStepTime += STEP;
     }
+  }
+
+  /** Switch the active track. If playing, restarts the new loop cleanly. */
+  setTrack(index: number) {
+    const next = ((index % TRACKS.length) + TRACKS.length) % TRACKS.length;
+    if (next === this.trackIndex) return;
+    this.trackIndex = next;
+    if (this.timer !== null && this.ctx) {
+      // Restart the sequence so the new tempo/notes line up.
+      this.step = 0;
+      this.pass = 0;
+      this.nextStepTime = this.ctx.currentTime + 0.05;
+    }
+  }
+
+  getTrackIndex(): number {
+    return this.trackIndex;
   }
 
   /**

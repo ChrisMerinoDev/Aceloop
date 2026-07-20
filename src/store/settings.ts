@@ -18,6 +18,8 @@ interface SettingsState {
   muted: boolean;
   gameMode: boolean;
   characterHidden: boolean;
+  /** Index into TRACKS in components/audio/chiptune.ts. */
+  musicTrack: number;
   /** Hides the floating corner log-out button (re-enable from Profile). */
   logoutCornerHidden: boolean;
   character: CharacterConfig;
@@ -25,6 +27,7 @@ interface SettingsState {
   toggleGameMode: () => void;
   toggleCharacterHidden: () => void;
   toggleLogoutCorner: () => void;
+  setMusicTrack: (index: number) => void;
   setCharacter: (patch: Partial<CharacterConfig>) => void;
 }
 
@@ -34,9 +37,11 @@ export const useSettings = create<SettingsState>()(
       muted: true,
       gameMode: false,
       characterHidden: false,
+      musicTrack: 0,
       logoutCornerHidden: false,
       character: DEFAULT_CHARACTER,
       toggleMuted: () => set((s) => ({ muted: !s.muted })),
+      setMusicTrack: (index) => set({ musicTrack: index }),
       toggleGameMode: () => set((s) => ({ gameMode: !s.gameMode })),
       toggleCharacterHidden: () =>
         set((s) => ({ characterHidden: !s.characterHidden })),

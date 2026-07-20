@@ -16,9 +16,14 @@ interface Row {
   streak_count: number;
 }
 
+// Module-level cache survives navigation, so returning to this page (or
+// toggling scope) paints instantly and only hits the network when stale.
+const cache: Partial<Record<"global" | "weekly", { rows: Row[]; at: number }>> = {};
+const CACHE_TTL = 60_000; // 1 min
+
 export default function LeaderboardPage() {
-  const [rows, setRows] = useState<Row[] | null>(null);
   const [scope, setScope] = useState<"global" | "weekly">("global");
+  const [rows, setRows] = useState<Row[] | null>(() => cache.global?.rows ?? null);
   const [error, setError] = useState(false);
   const game = useGame();
   const configured = supabaseConfigured();
@@ -27,8 +32,12 @@ export default function LeaderboardPage() {
     const sb = getSupabase();
     if (!sb) return;
     let cancelled = false;
-    setRows(null);
     setError(false);
+
+    const cached = cache[scope];
+    // Paint cached data immediately (no loading flash); refetch below unless fresh.
+    setRows(cached?.rows ?? null);
+    if (cached && Date.now() - cached.at < CACHE_TTL) return;
 
     const load = async () => {
       try {
@@ -39,7 +48,9 @@ export default function LeaderboardPage() {
             .order("xp", { ascending: false })
             .limit(50);
           if (error) throw error;
-          if (!cancelled) setRows((data as Row[]) ?? []);
+          const list = (data as Row[]) ?? [];
+          cache.global = { rows: list, at: Date.now() };
+          if (!cancelled) setRows(list);
         } else {
           // Weekly: sum xp_earned from this week's attempts, joined to profiles.
           const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
@@ -55,6 +66,7 @@ export default function LeaderboardPage() {
           }
           const ids = [...totals.keys()];
           if (ids.length === 0) {
+            cache.weekly = { rows: [], at: Date.now() };
             if (!cancelled) setRows([]);
             return;
           }
@@ -70,7 +82,9 @@ export default function LeaderboardPage() {
             xp: totals.get(p.id) ?? 0,
           }));
           list.sort((a, b) => b.xp - a.xp);
-          if (!cancelled) setRows(list.slice(0, 50));
+          const top = list.slice(0, 50);
+          cache.weekly = { rows: top, at: Date.now() };
+          if (!cancelled) setRows(top);
         }
       } catch {
         if (!cancelled) {

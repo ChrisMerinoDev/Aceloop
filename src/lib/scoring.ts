@@ -65,6 +65,37 @@ export function nextRank(xp: number): { name: RankName; minXp: number } | null {
   return null;
 }
 
+/**
+ * Numeric hero level derived from total XP. The curve grows each level:
+ * total XP needed to *reach* level L is 50·(L−1)·L
+ * → L1:0, L2:100, L3:300, L4:600, L5:1000, L6:1500 …
+ */
+export function totalXpForLevel(level: number): number {
+  const l = Math.max(1, level);
+  return 50 * (l - 1) * l;
+}
+
+export function levelForXp(xp: number): number {
+  let level = 1;
+  while (xp >= totalXpForLevel(level + 1)) level++;
+  return level;
+}
+
+/** Progress within the current level, for XP bars / labels. */
+export function levelProgress(xp: number): {
+  level: number;
+  into: number;
+  needed: number;
+  percent: number;
+} {
+  const level = levelForXp(xp);
+  const floor = totalXpForLevel(level);
+  const ceil = totalXpForLevel(level + 1);
+  const needed = ceil - floor;
+  const into = xp - floor;
+  return { level, into, needed, percent: Math.min(100, Math.round((into / needed) * 100)) };
+}
+
 /** Coaching line for the report screen. */
 export function coachingFeedback(opts: {
   passed: number;

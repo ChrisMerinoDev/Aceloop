@@ -1,18 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { useGame, selectReviewQueue } from "@/store/game";
 import { QUESTIONS } from "@/content";
 import { ACHIEVEMENTS } from "@/content/achievements";
@@ -20,6 +10,20 @@ import { nextRank, rankForXp, RANKS } from "@/lib/scoring";
 import { todayKey } from "@/lib/utils";
 import { PixelBadge, PixelBar, PixelButton, PixelPanel } from "@/components/ui/pixel";
 import { cn } from "@/lib/utils";
+
+const ChartFallback = () => (
+  <div className="h-full grid place-items-center font-pixel text-[9px] text-ink-dim">
+    LOADING CHART<span className="blink">…</span>
+  </div>
+);
+const XpBarChart = dynamic(
+  () => import("./DashboardCharts").then((m) => m.XpBarChart),
+  { ssr: false, loading: ChartFallback }
+);
+const ScoreLineChart = dynamic(
+  () => import("./DashboardCharts").then((m) => m.ScoreLineChart),
+  { ssr: false, loading: ChartFallback }
+);
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -104,18 +108,7 @@ export default function DashboardPage() {
       <div className="grid md:grid-cols-2 gap-6 mt-6">
         <PixelPanel title="XP — last 14 days">
           <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={days}>
-                <CartesianGrid stroke="#3c3c64" strokeDasharray="4 4" />
-                <XAxis dataKey="day" tick={{ fill: "#9a9ab8", fontSize: 11 }} interval={2} />
-                <YAxis tick={{ fill: "#9a9ab8", fontSize: 11 }} width={32} />
-                <Tooltip
-                  contentStyle={{ background: "#24243e", border: "2px solid #3c3c64" }}
-                  labelStyle={{ color: "#e8e8f0" }}
-                />
-                <Bar dataKey="xp" fill="#92cc41" />
-              </BarChart>
-            </ResponsiveContainer>
+            <XpBarChart data={days} />
           </div>
         </PixelPanel>
         <PixelPanel title="Recent scores">
@@ -125,18 +118,7 @@ export default function DashboardPage() {
                 No attempts yet — go fight something.
               </p>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={recentScores}>
-                  <CartesianGrid stroke="#3c3c64" strokeDasharray="4 4" />
-                  <XAxis dataKey="n" tick={{ fill: "#9a9ab8", fontSize: 11 }} />
-                  <YAxis domain={[0, 100]} tick={{ fill: "#9a9ab8", fontSize: 11 }} width={32} />
-                  <Tooltip
-                    contentStyle={{ background: "#24243e", border: "2px solid #3c3c64" }}
-                    labelStyle={{ color: "#e8e8f0" }}
-                  />
-                  <Line type="stepAfter" dataKey="score" stroke="#f8b800" strokeWidth={3} dot />
-                </LineChart>
-              </ResponsiveContainer>
+              <ScoreLineChart data={recentScores} />
             )}
           </div>
         </PixelPanel>
