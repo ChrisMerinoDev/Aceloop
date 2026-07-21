@@ -19,7 +19,7 @@ const vt323 = VT323({
 });
 
 export const metadata: Metadata = {
-  title: "AceLoop — 8-bit Interview Quest",
+  title: "AceLoop, 8-bit Interview Quest",
   description:
     "A retro RPG that trains you on the most-asked DSA and senior frontend interview questions. Solve timed challenges, earn XP, level up.",
 };
