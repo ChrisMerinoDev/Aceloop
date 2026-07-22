@@ -65,11 +65,11 @@ export function Nav() {
         <div className="ml-auto flex items-center gap-2">
           {mounted && (
             <>
-              <span className="font-pixel text-[9px] text-hp" title="Daily streak">
+              <span className="font-pixel text-[11px] text-hp" title="Daily streak">
                 🔥{streakCount}
               </span>
               <span
-                className="font-pixel text-[9px] text-xpbar hidden sm:inline"
+                className="font-pixel text-[11px] text-xpbar hidden sm:inline"
                 title={`Rank: ${rankForXp(xp)}`}
               >
                 {xp}xp
@@ -125,14 +125,14 @@ export function Nav() {
             href="https://github.com/ChrismerinoDev"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-1.5 font-pixel text-[8px] text-ink-dim hover:text-gold-2 uppercase"
+            className="hidden sm:inline-flex items-center gap-1.5 font-pixel text-[10px] text-ink-dim hover:text-gold-2 uppercase"
             title="Developed by ChrismerinoDev — view GitHub profile"
           >
             <span className="leading-none">Developed by</span>
             <svg
               viewBox="0 0 16 16"
-              width="14"
-              height="14"
+              width="16"
+              height="16"
               fill="currentColor"
               aria-hidden="true"
               className="shrink-0"
