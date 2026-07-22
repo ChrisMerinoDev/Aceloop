@@ -53,7 +53,7 @@ export function Nav() {
               key={l.href}
               href={l.href}
               className={cn(
-                "font-pixel text-[9px] px-3 py-2 uppercase hover:text-gold-2",
+                "font-pixel text-[11px] px-3 py-2 uppercase hover:text-gold-2",
                 pathname?.startsWith(l.href) ? "text-gold" : "text-ink-dim"
               )}
             >
@@ -157,7 +157,7 @@ export function Nav() {
               href={l.href}
               onClick={() => setMenuOpen(false)}
               className={cn(
-                "font-pixel text-[9px] px-3 py-2 uppercase",
+                "font-pixel text-[11px] px-3 py-2 uppercase",
                 pathname?.startsWith(l.href) ? "text-gold" : "text-ink-dim"
               )}
             >
