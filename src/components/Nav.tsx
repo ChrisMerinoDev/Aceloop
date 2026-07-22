@@ -65,7 +65,7 @@ export function Nav() {
         <div className="ml-auto flex items-center gap-2">
           {mounted && (
             <>
-              <span className="font-pixel text-[11px] text-hp" title="Daily streak">
+              <span className="font-pixel text-[11px] text-hp mr-2" title="Daily streak">
                 🔥{streakCount}
               </span>
               <span

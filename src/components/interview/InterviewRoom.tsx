@@ -230,13 +230,13 @@ export function InterviewRoom({ question }: { question: Question }) {
   return (
     <div className="h-screen flex flex-col">
       <header className="flex items-center gap-3 px-4 py-2 bg-panel border-b-4 border-border-px shrink-0">
-        <Link href="/arena" className="font-pixel text-[9px] text-ink-dim hover:text-hp">
+        <Link href="/arena" className="font-pixel text-[11px] text-ink-dim hover:text-hp">
           ✕ QUIT
         </Link>
-        <span className="font-pixel text-[10px] text-ink truncate">{question.title}</span>
+        <span className="font-pixel text-[11px] text-ink truncate">{question.title}</span>
         <span className="ml-auto" />
         {warn90 && summary === null && (
-          <span className="font-pixel text-[9px] text-hp blink">HURRY!</span>
+          <span className="font-pixel text-[11px] text-hp blink">HURRY!</span>
         )}
         <span
           className={cn("font-pixel text-sm tabular-nums", timerColor, warn90 && "blink")}
